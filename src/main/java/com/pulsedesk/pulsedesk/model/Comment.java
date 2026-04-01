@@ -24,6 +24,8 @@ public class Comment {
 
     private String channel;
 
+    private Long ticketId;
+
     @Column(nullable = false, updatable = false)
     private LocalDateTime createdAt;
 

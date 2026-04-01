@@ -1,11 +1,14 @@
 package com.pulsedesk.pulsedesk.controller;
 
+import com.pulsedesk.pulsedesk.dto.TicketResponse;
 import com.pulsedesk.pulsedesk.model.Ticket;
 import com.pulsedesk.pulsedesk.repository.TicketRepository;
+import com.pulsedesk.pulsedesk.service.TicketService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import java.util.List;
+import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/tickets")
@@ -13,17 +16,21 @@ import java.util.List;
 public class TicketController {
 
     private final TicketRepository ticketRepository;
+    private final TicketService ticketService;
 
     @GetMapping
-    public ResponseEntity<List<Ticket>> getAllTickets() {
-        List<Ticket> tickets = ticketRepository.findAll();
+    public ResponseEntity<List<TicketResponse>> getAllTickets() {
+        List<TicketResponse> tickets = ticketRepository.findAll().stream()
+                .map(ticketService::toResponse)
+                .collect(Collectors.toList());
         return ResponseEntity.ok(tickets);
     }
 
     @GetMapping("/{ticketId}")
-    public ResponseEntity<Ticket> getTicketById(@PathVariable Long ticketId) {
+    public ResponseEntity<TicketResponse> getTicketById(@PathVariable Long ticketId) {
         return ticketRepository.findById(ticketId)
+                .map(ticketService::toResponse)
                 .map(ResponseEntity::ok)
-                .orElse(ResponseEntity.notFound().build());
+                .orElseThrow(() -> new TicketNotFoundException(ticketId));
     }
 }
