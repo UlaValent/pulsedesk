@@ -1,7 +1,6 @@
 package com.pulsedesk.pulsedesk.controller;
 
 import com.pulsedesk.pulsedesk.dto.TicketResponse;
-import com.pulsedesk.pulsedesk.model.Ticket;
 import com.pulsedesk.pulsedesk.repository.TicketRepository;
 import com.pulsedesk.pulsedesk.service.TicketService;
 import lombok.RequiredArgsConstructor;
