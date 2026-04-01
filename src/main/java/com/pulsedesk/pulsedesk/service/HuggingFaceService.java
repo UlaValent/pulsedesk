@@ -20,9 +20,13 @@ public class HuggingFaceService {
     }
 
     public String sendCommentText(String commentText) {
+        return sendPrompt(commentText);
+    }
+
+    public String sendPrompt(String prompt) {
         validateConfiguration();
 
-        String requestBody = "{\"inputs\":\"" + escapeJson(commentText) + "\"}";
+        String requestBody = "{\"inputs\":\"" + escapeJson(prompt) + "\"}";
 
         try {
             return restClient.post()
