@@ -47,6 +47,24 @@ class TriageServiceTests {
                 .hasMessageContaining("Unable to determine a yes/no triage decision");
     }
 
+    @Test
+    void rejectsMixedYesAndNoInSingleResponse() {
+        TriageService service = new TriageService(new StubHuggingFaceService("[{\"generated_text\":\"answer yes or no the app is great\"}]"));
+
+        assertThatThrownBy(() -> service.shouldCreateTicketFromResponse("[{\"generated_text\":\"answer yes or no the app is great\"}]"))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("Unable to determine a yes/no triage decision");
+    }
+
+    @Test
+    void defaultsToFalseWhenModelAnswerIsUnclear() {
+        TriageService service = new TriageService(new StubHuggingFaceService("[{\"generated_text\":\"maybe\"}]"));
+
+        boolean shouldCreateTicket = service.shouldCreateTicket("I have some mixed feedback.");
+
+        assertThat(shouldCreateTicket).isFalse();
+    }
+
     private static final class StubHuggingFaceService extends HuggingFaceService {
 
         private final String response;

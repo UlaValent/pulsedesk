@@ -11,6 +11,10 @@ import org.springframework.web.client.RestClientResponseException;
 @Service
 public class HuggingFaceService {
 
+    private static final String LEGACY_HF_HOST = "https://api-inference.huggingface.co";
+    private static final String MODEL_PAGE_HF_HOST = "https://huggingface.co";
+    private static final String ROUTER_HF_HOST = "https://router.huggingface.co";
+
     private final RestClient restClient;
     private final HuggingFaceProperties properties;
 
@@ -25,18 +29,25 @@ public class HuggingFaceService {
 
     public String sendPrompt(String prompt) {
         validateConfiguration();
+        String modelUrl = resolveModelUrl(properties.getModelUrl());
 
         String requestBody = "{\"inputs\":\"" + escapeJson(prompt) + "\"}";
 
         try {
             return restClient.post()
-                    .uri(properties.getModelUrl())
+                .uri(modelUrl)
                     .header(HttpHeaders.AUTHORIZATION, "Bearer " + properties.getApiKey())
                     .contentType(MediaType.APPLICATION_JSON)
                     .body(requestBody)
                     .retrieve()
                     .body(String.class);
         } catch (RestClientResponseException ex) {
+            if (ex.getStatusCode().value() == 410 && ex.getResponseBodyAsString().contains("router.huggingface.co")) {
+            throw new IllegalStateException(
+                "Hugging Face endpoint is deprecated. Set HUGGINGFACE_MODEL_URL to a router endpoint, " +
+                    "for example https://router.huggingface.co/hf-inference/models/google/flan-t5-large.",
+                ex);
+            }
             throw new IllegalStateException(
                     "Hugging Face inference request failed with status " + ex.getStatusCode() + ": " + ex.getResponseBodyAsString(),
                     ex);
@@ -52,6 +63,33 @@ public class HuggingFaceService {
         if (!StringUtils.hasText(properties.getModelUrl())) {
             throw new IllegalStateException("Hugging Face model URL is not configured.");
         }
+    }
+
+    private String resolveModelUrl(String configuredUrl) {
+        String trimmed = configuredUrl.trim();
+        if (trimmed.startsWith(ROUTER_HF_HOST)) {
+            return trimmed;
+        }
+
+        if (trimmed.startsWith(LEGACY_HF_HOST)) {
+            String path = trimmed.substring(LEGACY_HF_HOST.length());
+            if (path.startsWith("/models/")) {
+                return ROUTER_HF_HOST + "/hf-inference" + path;
+            }
+            return ROUTER_HF_HOST + path;
+        }
+
+        if (trimmed.startsWith(MODEL_PAGE_HF_HOST)) {
+            String path = trimmed.substring(MODEL_PAGE_HF_HOST.length());
+            if (path.startsWith("/models/")) {
+                path = path.substring("/models".length());
+            }
+            if (path.startsWith("/")) {
+                return ROUTER_HF_HOST + "/hf-inference/models" + path;
+            }
+        }
+
+        return ROUTER_HF_HOST + "/hf-inference/models/" + trimmed;
     }
 
     private String escapeJson(String value) {

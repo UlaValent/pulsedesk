@@ -1,0 +1,312 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PulseDesk</title>
+    <style>
+        :root {
+            --bg: #f6f8fb;
+            --card: #ffffff;
+            --text: #1b2430;
+            --muted: #627287;
+            --border: #dce3ec;
+            --accent: #0d6efd;
+            --accent-dark: #0b5ed7;
+            --error: #b42318;
+            --ok: #027a48;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(180deg, #f8fbff 0%, #eef3f9 100%);
+            color: var(--text);
+        }
+
+        .container {
+            width: min(1000px, 94vw);
+            margin: 32px auto;
+            display: grid;
+            gap: 20px;
+        }
+
+        .card {
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 18px;
+            box-shadow: 0 8px 24px rgba(11, 28, 45, 0.05);
+        }
+
+        h1, h2 {
+            margin: 0 0 12px;
+        }
+
+        .subtitle {
+            margin: 0;
+            color: var(--muted);
+            font-size: 14px;
+        }
+
+        form {
+            display: grid;
+            gap: 12px;
+        }
+
+        label {
+            font-weight: 600;
+            font-size: 14px;
+        }
+
+        input, textarea, button {
+            font: inherit;
+        }
+
+        textarea, input {
+            width: 100%;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 10px;
+            background: #fff;
+        }
+
+        textarea {
+            min-height: 96px;
+            resize: vertical;
+        }
+
+        .actions {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        button {
+            border: 0;
+            border-radius: 8px;
+            padding: 10px 14px;
+            cursor: pointer;
+            background: var(--accent);
+            color: #fff;
+            font-weight: 600;
+        }
+
+        button:hover {
+            background: var(--accent-dark);
+        }
+
+        button.secondary {
+            background: #e8eef6;
+            color: #15334d;
+        }
+
+        .message {
+            margin-top: 8px;
+            min-height: 20px;
+            font-size: 14px;
+        }
+
+        .message.error {
+            color: var(--error);
+        }
+
+        .message.success {
+            color: var(--ok);
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        thead {
+            background: #f5f8fc;
+        }
+
+        th, td {
+            border: 1px solid var(--border);
+            padding: 10px;
+            text-align: left;
+            vertical-align: top;
+            font-size: 14px;
+        }
+
+        .empty {
+            color: var(--muted);
+            font-size: 14px;
+            margin-top: 8px;
+        }
+
+        .mono {
+            font-family: Consolas, Monaco, "Courier New", monospace;
+            font-size: 12px;
+            color: #4a5f75;
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <section class="card">
+        <h1>PulseDesk</h1>
+        <p class="subtitle">Submit a customer comment. The backend triages it and may create a ticket.</p>
+    </section>
+
+    <section class="card">
+        <h2>Submit Comment</h2>
+        <form id="comment-form">
+            <div>
+                <label for="comment-text">Comment Text</label>
+                <textarea id="comment-text" name="text" placeholder="Describe the customer issue or request..." required></textarea>
+            </div>
+            <div>
+                <label for="comment-source">Source (optional)</label>
+                <input id="comment-source" name="source" type="text" placeholder="web, email, chat...">
+            </div>
+            <div class="actions">
+                <button type="submit">Submit Comment</button>
+                <button class="secondary" id="clear-btn" type="button">Clear</button>
+            </div>
+            <div id="comment-message" class="message"></div>
+        </form>
+    </section>
+
+    <section class="card">
+        <div class="actions" style="justify-content: space-between; align-items: center; margin-bottom: 8px;">
+            <h2 style="margin: 0;">Tickets</h2>
+            <button id="refresh-tickets" class="secondary" type="button">Refresh Tickets</button>
+        </div>
+        <div class="mono">GET /tickets</div>
+        <div id="tickets-empty" class="empty" hidden>No tickets yet.</div>
+        <div style="overflow-x: auto; margin-top: 8px;">
+            <table id="tickets-table" hidden>
+                <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Comment ID</th>
+                    <th>Title</th>
+                    <th>Category</th>
+                    <th>Priority</th>
+                    <th>Summary</th>
+                    <th>Created At</th>
+                </tr>
+                </thead>
+                <tbody id="tickets-body"></tbody>
+            </table>
+        </div>
+        <div id="tickets-message" class="message"></div>
+    </section>
+</div>
+
+<script>
+    const form = document.getElementById("comment-form");
+    const clearBtn = document.getElementById("clear-btn");
+    const refreshBtn = document.getElementById("refresh-tickets");
+
+    const commentMessage = document.getElementById("comment-message");
+    const ticketsMessage = document.getElementById("tickets-message");
+
+    const ticketsTable = document.getElementById("tickets-table");
+    const ticketsBody = document.getElementById("tickets-body");
+    const ticketsEmpty = document.getElementById("tickets-empty");
+
+    function setMessage(element, text, type) {
+        element.textContent = text || "";
+        element.className = "message" + (type ? " " + type : "");
+    }
+
+    async function fetchTickets() {
+        setMessage(ticketsMessage, "", "");
+        try {
+            const response = await fetch("/tickets");
+            if (!response.ok) {
+                throw new Error("Failed to load tickets. HTTP " + response.status);
+            }
+
+            const tickets = await response.json();
+            renderTickets(tickets);
+        } catch (error) {
+            renderTickets([]);
+            setMessage(ticketsMessage, error.message, "error");
+        }
+    }
+
+    function renderTickets(tickets) {
+        ticketsBody.innerHTML = "";
+
+        if (!Array.isArray(tickets) || tickets.length === 0) {
+            ticketsTable.hidden = true;
+            ticketsEmpty.hidden = false;
+            return;
+        }
+
+        ticketsEmpty.hidden = true;
+        ticketsTable.hidden = false;
+
+        tickets.forEach((ticket) => {
+            const row = document.createElement("tr");
+            row.innerHTML = `
+                <td>${ticket.id ?? ""}</td>
+                <td>${ticket.commentId ?? ""}</td>
+                <td>${ticket.title ?? ""}</td>
+                <td>${ticket.category ?? ""}</td>
+                <td>${ticket.priority ?? ""}</td>
+                <td>${ticket.summary ?? ""}</td>
+                <td>${ticket.createdAt ?? ""}</td>
+            `;
+            ticketsBody.appendChild(row);
+        });
+    }
+
+    form.addEventListener("submit", async (event) => {
+        event.preventDefault();
+        setMessage(commentMessage, "Submitting...", "");
+
+        const text = document.getElementById("comment-text").value.trim();
+        const source = document.getElementById("comment-source").value.trim();
+
+        try {
+            const response = await fetch("/comments", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ text, source })
+            });
+
+            if (!response.ok) {
+                let errorText = "Failed to submit comment. HTTP " + response.status;
+                try {
+                    const errorJson = await response.json();
+                    if (errorJson && errorJson.message) {
+                        errorText = errorJson.message;
+                    }
+                } catch (_) {
+                    // Keep fallback error text when body is not JSON.
+                }
+                throw new Error(errorText);
+            }
+
+            const createdComment = await response.json();
+            const ticketInfo = createdComment.ticketId ? " Ticket ID: " + createdComment.ticketId : " No ticket created.";
+            setMessage(commentMessage, "Comment submitted successfully." + ticketInfo, "success");
+            form.reset();
+            await fetchTickets();
+        } catch (error) {
+            setMessage(commentMessage, error.message, "error");
+        }
+    });
+
+    clearBtn.addEventListener("click", () => {
+        form.reset();
+        setMessage(commentMessage, "", "");
+    });
+
+    refreshBtn.addEventListener("click", fetchTickets);
+
+    fetchTickets();
+</script>
+</body>
+</html>

@@ -8,7 +8,7 @@ import org.springframework.stereotype.Component;
 public class HuggingFaceProperties {
 
     private String apiKey;
-    private String modelUrl;
+    private String modelUrl = "https://router.huggingface.co/hf-inference/models/google/flan-t5-large";
 
     public String getApiKey() {
         return apiKey;

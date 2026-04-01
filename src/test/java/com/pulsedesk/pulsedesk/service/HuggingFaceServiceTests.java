@@ -34,7 +34,7 @@ class HuggingFaceServiceTests {
 
     @Test
     void sendsCommentTextAndReturnsRawResponse() {
-        mockServer.expect(requestTo(properties.getModelUrl()))
+        mockServer.expect(requestTo("https://router.huggingface.co/hf-inference/models/test-model"))
                 .andExpect(method(POST))
                 .andExpect(header("Authorization", "Bearer test-api-key"))
                 .andRespond(withSuccess("[{\"generated_text\":\"raw model payload\"}]", MediaType.APPLICATION_JSON));
@@ -42,6 +42,21 @@ class HuggingFaceServiceTests {
         String response = service.sendCommentText("The app keeps crashing on login.");
 
         assertThat(response).isEqualTo("[{\"generated_text\":\"raw model payload\"}]");
+        mockServer.verify();
+    }
+
+    @Test
+    void normalizesModelPageUrlToRouterInferenceEndpoint() {
+        properties.setModelUrl("https://huggingface.co/google/flan-t5-base");
+
+        mockServer.expect(requestTo("https://router.huggingface.co/hf-inference/models/google/flan-t5-base"))
+                .andExpect(method(POST))
+                .andExpect(header("Authorization", "Bearer test-api-key"))
+                .andRespond(withSuccess("[{\"generated_text\":\"ok\"}]", MediaType.APPLICATION_JSON));
+
+        String response = service.sendCommentText("please summarize this issue");
+
+        assertThat(response).isEqualTo("[{\"generated_text\":\"ok\"}]");
         mockServer.verify();
     }
 

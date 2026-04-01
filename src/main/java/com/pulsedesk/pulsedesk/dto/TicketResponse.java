@@ -1,5 +1,6 @@
 package com.pulsedesk.pulsedesk.dto;
 
+import com.fasterxml.jackson.annotation.JsonFormat;
 import com.pulsedesk.pulsedesk.model.enums.Category;
 import com.pulsedesk.pulsedesk.model.enums.Priority;
 import java.time.LocalDateTime;
@@ -12,6 +13,7 @@ public class TicketResponse {
     private Category category;
     private Priority priority;
     private String summary;
+    @JsonFormat(pattern = "yyyy-MM-dd'T'HH:mm:ss")
     private LocalDateTime createdAt;
 
     public Long getId() {
